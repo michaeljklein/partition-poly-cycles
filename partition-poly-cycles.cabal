@@ -1,0 +1,79 @@
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 4c197a5f7e1eca24f45a37bf78f364c8013a3b793d1fe527bf4a006e119f19b5
+
+name:           partition-poly-cycles
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/michaeljklein/partition-poly-cycles#readme>
+homepage:       https://github.com/michaeljklein/partition-poly-cycles#readme
+bug-reports:    https://github.com/michaeljklein/partition-poly-cycles/issues
+author:         Michael J. Klein
+maintainer:     lambdamichael@gmail.com
+copyright:      2018 Michael J. Klein
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/michaeljklein/partition-poly-cycles
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_partition_poly_cycles
+  hs-source-dirs:
+      src
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , comonad
+    , criterion
+    , free
+    , memoize
+    , time
+  default-language: Haskell2010
+
+executable partition-poly-cycles-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_partition_poly_cycles
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , comonad
+    , criterion
+    , free
+    , memoize
+    , partition-poly-cycles
+    , time
+  default-language: Haskell2010
+
+test-suite partition-poly-cycles-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_partition_poly_cycles
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , comonad
+    , criterion
+    , free
+    , memoize
+    , partition-poly-cycles
+    , time
+  default-language: Haskell2010
