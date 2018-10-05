@@ -6,22 +6,22 @@
 
 module Lib where
 
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Free
+import Control.Monad.Free.TH
+import Data.Function.Memoize
+import Data.Functor.Classes
+import Data.List
+import Data.List.Utils
+import Data.Maybe
+import Data.Poly
+import Data.Time.Clock
+import Data.Tuple
+import System.Environment
 import Test.QuickCheck
 import Text.ParserCombinators.ReadP
 import Text.ParserCombinators.ReadPrec
-import Data.List
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe
-import Control.Monad.Free
-import Control.Monad.Free.TH
-import Control.Applicative
-import Data.Functor.Classes
-import Control.Monad
-
-import System.Environment
-import Data.Tuple
-import Data.Time.Clock
-import Data.Function.Memoize
 
 -- | @`parts` k n@ is the number of partitions of @n@ elements
 -- mutually disjoint subsets of at most @k@ elements
@@ -202,29 +202,6 @@ prop_ffToCyclicSeriesEx =
   (\x -> and . take x $ zipWith (==) (ff <$> [0 ..]) cyclicSeriesEx) 1000
 
 
--- | Break up a list into chunks of size @n@, or @< n@ if
--- there are @< n@ elements (remaining) in the list
-chunks :: Int -> [a] -> [[a]]
-chunks n = loop n []
-  where
-    loop 0 xs ys = reverse xs : loop n [] ys
-    loop _ xs [] = [reverse xs]
-    loop n xs (y:ys) = loop (n - 1) (y : xs) ys
-
--- | Negate all numbers at odd indices
-alternate :: Num a => [a] -> [a]
-alternate [] = []
-alternate [x] = [x]
-alternate ~(x:y:zs) = x : negate y : alternate zs
-
--- | `alternate` if `signum`s of the first two elements differ
-autoAlternate :: (Num a, Ord a) => [a] -> [a]
-autoAlternate [] = []
-autoAlternate [x] = [x]
-autoAlternate ~(x:y:zs)
-  | signum x /= signum y = alternate (x : y : zs)
-  | otherwise = x : y : zs
-
 -- | See `prop_ffToCyclicSeriesEx`
 ff :: Integral a => a -> a
 ff x =
@@ -248,162 +225,6 @@ ff x =
       let n = y + 1
        in 3 * n ^ 2 + 3 * n + 1
 
--- | Convert a list to a `Poly` if possible
-toPoly :: (Eq a, Fractional a) => [a] -> Maybe (Poly a)
-toPoly = listToMaybe . toPolys
-
--- | Convert a list of a list of `Poly`s
-toPolys :: (Eq a, Fractional a) => [a] -> [Poly a]
-toPolys xs = catMaybes $ zipWith toPolyN [0 .. length xs] (repeat xs)
-
--- | Convert to `Poly` if possible using the given number of elements
-toPolyN :: (Eq a, Fractional a) => Int -> [a] -> Maybe (Poly a)
-toPolyN n xs =
-  if all (\x -> runPoly poly x == x) xs
-    then Just poly
-    else Nothing
-  where
-    ys = takeExactly n xs
-    poly = interpolate xs
-
--- | Take exactly the given number of elements or return `Nothing`
-takeExactly :: Int -> [a] -> Maybe [a]
-takeExactly 0 [] = Just []
-takeExactly 0 _ = Just []
-takeExactly _ [] = Nothing
-takeExactly n ~(x:xs) = (x :) <$> takeExactly (n - 1) xs
-
--- | Interpolate a list of `Fractional` values into a `Poly`
-interpolate :: Fractional a => [a] -> Poly a
-interpolate xs =
-  simplify $
-  sum
-    [ product
-      [ (var - return (xs !! j)) / return (xs !! i - xs !! j)
-      | j <- [0 .. n]
-      , j /= i
-      ]
-    | i <- [0 .. n]
-    ]
-  where
-    n = length xs - 1
-
--- | Polynomials with variables and division
-data PolyF a where
-  Var :: PolyF a
-  (:+) :: a -> a -> PolyF a
-  (:-) :: a -> a -> PolyF a
-  (:*) :: a -> a -> PolyF a
-  (:/) :: a -> a -> PolyF a
-  deriving (Eq, Ord, Show, Read, Functor)
-
-instance Eq1 PolyF where
-  liftEq _ Var Var = True
-  liftEq _ _ Var = False
-  liftEq _ Var _ = False
-  liftEq eq (x :+ y) (z :+ w) = eq x z && eq y w
-  liftEq _ _ (_ :+ _) = False
-  liftEq _ (_ :+ _) _ = False
-  liftEq eq (x :- y) (z :- w) = eq x z && eq y w
-  liftEq _ _ (_ :- _) = False
-  liftEq _ (_ :- _) _ = False
-  liftEq eq (x :* y) (z :* w) = eq x z && eq y w
-  liftEq _ _ (_ :* _) = False
-  liftEq _ (_ :* _) _ = False
-  liftEq eq (x :/ y) (z :/ w) = eq x z && eq y w
-  -- liftEq _ _ (_ :/ _) = False
-  -- liftEq _ (_ :/ _) _ = False
-
-instance Show1 PolyF where
-  liftShowsPrec _ _ _ Var = ("Var" ++)
-  liftShowsPrec sp sl n (x :+ y) = showsBinaryWith sp sp ":+" n x y
-  liftShowsPrec sp sl n (x :- y) = showsBinaryWith sp sp ":-" n x y
-  liftShowsPrec sp sl n (x :* y) = showsBinaryWith sp sp ":*" n x y
-  liftShowsPrec sp sl n (x :/ y) = showsBinaryWith sp sp ":/" n x y
-
-instance Read1 PolyF where
-  liftReadPrec rp rs =
-    (readP_to_Prec (const $ Var <$ string "Var")) <|>
-    readBinaryWith rp rp ":+" (:+) <|>
-    readBinaryWith rp rp ":-" (:-) <|>
-    readBinaryWith rp rp ":*" (:*) <|>
-    readBinaryWith rp rp ":/" (:/)
-
--- | `Poly` variable
-var :: Poly a
-var = Poly $ Free Var
-
--- | Univariate polynomials
-newtype Poly a = Poly
-  { unPoly :: Free PolyF a
-  } deriving (Eq, Show, Read, Functor, Applicative, Monad)
-
-instance MonadFree PolyF Poly where
-  wrap = Poly . wrap . fmap unPoly
-
--- | Simplify combinations of constants and @x / x@
-simplify :: Fractional a => Poly a -> Poly a
-simplify (Poly (Free (Free Var :+ Free Var))) = 2 * var
-simplify (Poly (Free (Pure x :+ Pure y))) = return $ x + y
-simplify (Poly (Free (Pure x :- Pure y))) = return $ x - y
-simplify (Poly (Free (Pure x :* Pure y))) = return $ x * y
-simplify (Poly (Free (Pure x :/ Pure y))) = return $ x / y
-simplify x = x
-
--- | `wrap` after applying a binary function
-wrap2 :: MonadFree m f => (a -> b -> m (f c)) -> a -> b -> f c
-wrap2 f x = wrap . f x
-
--- Warning: `abs` and `signum` are unsupported on all but literals
-instance Num a => Num (Poly a) where
-  (+) = wrap2 (:+)
-  (-) = wrap2 (:-)
-  (*) = wrap2 (:*)
-
-  abs (Poly (Pure x)) = Poly (Pure (abs x))
-  abs _ = error "abs unsupported on all but literals"
-
-  signum (Poly (Pure x)) = Poly (Pure (signum x))
-  signum _ = error "signum unsupported on all but literals"
-
-  fromInteger = return . fromInteger
-
-instance Fractional a => Fractional (Poly a) where
-  (/) = wrap2 (:/)
-  fromRational = return . fromRational
-
--- | Evaluate a univariate polynomial on the given input
-runPoly :: Fractional a => Poly a -> a -> a
-runPoly (Poly poly) x = iter (`runPolyF` x) poly
-
--- | Run a single `Functor` layer of a `Poly`
-runPolyF :: Fractional a => PolyF a -> a -> a
-runPolyF Var x = x
-runPolyF (x :+ y) _ = x + y
-runPolyF (x :- y) _ = x - y
-runPolyF (x :* y) _ = x * y
-runPolyF (x :/ y) _ = x / y
-
-
--- | Map over the head of a `NonEmpty` list
-mapHead1 :: (a -> a) -> NonEmpty a -> NonEmpty a
-mapHead1 f ~(x :| xs) = f x :| xs
-
--- | First differences
-diff :: Num a => [a] -> [a]
-diff = zipWith(-)=<<drop 1
-
--- | Find a subsequence @ys@ of @xs@ such that:
---
--- @
---  and $ zipWith (==) xs (cycle ys)
--- @
---
-findCycle :: Eq a => [a] -> Maybe [a]
-findCycle [] = Nothing
-findCycle [x] = Just [x]
-findCycle xs =
-  listToMaybe $ boolMaybe (`isCycle` xs) `mapMaybe` init (tail (inits xs))
 
 -- | Find a "poly cycle", i.e. a cycle that results from taking `alternate`'s
 -- and `diff`'s of the original series.
@@ -423,7 +244,7 @@ findPolyCycle x =
          else Nothing) $
   mapMaybe ((>>= boolMaybe ((/= 1) . snd)) . findPolyCycleN x) [fromEnum x ..]
 
--- | `findPolyCycle` with a given period
+-- | `findPolyCycle` with a given period, applied to `parts5`
 findPolyCycleN :: Integral a => a -> Int -> Maybe ([a], Int)
 findPolyCycleN x y =
   fmap (fmap length . join (,)) .
@@ -440,36 +261,12 @@ exampleFindCycle x y =
     (autoAlternate . diff)
     (take y $ parts5 x <$> [x ..])
 
--- | Automatically alternate the first differences
---
--- @
---   `autoAlternate` . `diff`
--- @
---
-autoDiff :: (Ord a, Num a) => [a] -> [a]
-autoDiff = autoAlternate . diff
 
 -- | Nest a function @n@ times on the input
 nest :: Int -> (a -> a) -> a -> a
 nest 0 _ x = x
 nest 1 f x = f x
 nest n f x = nest (n - 1) f (f x)
-
--- | Is the second argument equal to:
---
--- @
---  take n $ cycle xs
--- @
---
--- for some @n@?
-isCycle :: Eq a => [a] -> [a] -> Bool
-isCycle xs = and . zipWith (==) (cycle xs)
-
--- | `Just` if the predicate returns `True`
-boolMaybe :: (a -> Bool) -> a -> Maybe a
-boolMaybe p x = if p x
-                   then Just x
-                   else Nothing
 
 -- | `Integral` log base @2@
 log2 :: Integral a => a -> a

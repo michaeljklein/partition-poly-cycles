@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4c197a5f7e1eca24f45a37bf78f364c8013a3b793d1fe527bf4a006e119f19b5
+-- hash: 7314aab0f5b32140f3c49c25e80af050568a38009bb4b9a81e0ab2440de228be
 
 name:           partition-poly-cycles
 version:        0.1.0.0
@@ -26,6 +26,9 @@ source-repository head
 
 library
   exposed-modules:
+      Data.List.Utils
+      Data.Poly
+      Data.PolyF
       Lib
   other-modules:
       Paths_partition_poly_cycles
