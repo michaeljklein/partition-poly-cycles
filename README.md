@@ -70,3 +70,7 @@ We use the above methods to analyze and optimize calculating the
 number of partitions for subsets of a given size along different axes.
 
 
+# Docs
+
+Haddock generated documentation may be found [here](https://michaeljklein.github.io/partition-poly-cycles/)
+
