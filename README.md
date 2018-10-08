@@ -1,7 +1,7 @@
 # partition-poly-cycles
 
-Several implementations calculating the number of partitions of @n@ elements
-into disjoint sets with at most @k@ elements and analysis of the resulting series.
+Several implementations calculating the number of partitions of `n` elements
+into disjoint sets with at most `k` elements and analysis of the resulting series.
 
 
 ## Polynomial representation
